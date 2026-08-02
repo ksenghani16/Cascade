@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cascade — Triage Control Room</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0B0E13;
+    --panel: #12161E;
+    --panel-2: #171C26;
+    --line: #232B38;
+    --text-hi: #E9EDF4;
+    --text-mid: #8A93A6;
+    --text-dim: #545E70;
+    --stage-classify: #5B8DEF;
+    --stage-novelty: #B37FEB;
+    --stage-llm: #E8A94C;
+    --stage-bandit: #4CC38A;
+    --danger: #E8615C;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'Inter', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text-hi);
+    font-family:var(--sans); min-height:100vh;
+  }
+  .wrap{max-width:1180px; margin:0 auto; padding:32px 24px 80px;}
+
+  header{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:28px; flex-wrap:wrap; gap:12px;}
+  .brand{display:flex; align-items:baseline; gap:12px;}
+  .brand .mark{font-family:var(--mono); font-weight:700; font-size:22px; letter-spacing:-0.02em;}
+  .brand .mark span{color:var(--stage-llm);}
+  .brand .tag{font-family:var(--mono); font-size:11px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.12em; border:1px solid var(--line); padding:3px 8px; border-radius:3px;}
+  .status{font-family:var(--mono); font-size:11px; color:var(--text-mid); display:flex; align-items:center; gap:8px;}
+  .dot{width:7px; height:7px; border-radius:50%; background:var(--text-dim); display:inline-block;}
+  .dot.on{background:var(--stage-bandit); box-shadow:0 0 8px var(--stage-bandit);}
+  .dot.off{background:var(--danger);}
+
+  .grid{display:grid; grid-template-columns:340px 1fr; gap:20px;}
+  @media (max-width:880px){.grid{grid-template-columns:1fr;}}
+
+  .panel{background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:20px;}
+  .panel h2{font-family:var(--mono); font-size:12px; text-transform:uppercase; letter-spacing:.1em; color:var(--text-mid); margin:0 0 16px;}
+
+  label{display:block; font-size:12px; color:var(--text-mid); margin:14px 0 6px;}
+  label:first-child{margin-top:0;}
+  textarea, input{
+    width:100%; background:var(--panel-2); border:1px solid var(--line); color:var(--text-hi);
+    border-radius:6px; padding:10px 12px; font-family:var(--sans); font-size:14px; resize:vertical;
+  }
+  textarea:focus, input:focus{outline:none; border-color:var(--stage-classify);}
+  .row2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+
+  button.submit{
+    margin-top:18px; width:100%; padding:12px; border:none; border-radius:6px;
+    background:var(--stage-llm); color:#151109; font-family:var(--mono); font-weight:600;
+    font-size:13px; letter-spacing:.04em; cursor:pointer; transition:filter .15s;
+  }
+  button.submit:hover{filter:brightness(1.08);}
+  button.submit:disabled{background:var(--line); color:var(--text-dim); cursor:not-allowed;}
+
+  .presets{display:flex; gap:6px; flex-wrap:wrap; margin-top:10px;}
+  .preset{font-family:var(--mono); font-size:10px; color:var(--text-mid); background:transparent;
+    border:1px solid var(--line); padding:4px 8px; border-radius:4px; cursor:pointer;}
+  .preset:hover{border-color:var(--text-mid); color:var(--text-hi);}
+
+  /* pipeline */
+  .pipeline{display:flex; flex-direction:column; gap:0; margin-bottom:20px;}
+  .stage{
+    display:flex; align-items:center; gap:14px; padding:14px 16px; border-radius:8px;
+    border:1px solid var(--line); background:var(--panel-2); position:relative; opacity:.4;
+    transition:opacity .35s ease, border-color .35s ease, background .35s ease;
+  }
+  .stage + .stage{margin-top:8px;}
+  .stage.active{opacity:1; border-color:var(--stage-color); background:linear-gradient(90deg, color-mix(in srgb, var(--stage-color) 14%, var(--panel-2)), var(--panel-2));}
+  .stage.skipped{opacity:.28;}
+  .stage .num{font-family:var(--mono); font-size:11px; color:var(--text-dim); width:20px;}
+  .stage.active .num{color:var(--stage-color);}
+  .stage .icon{width:34px; height:34px; border-radius:7px; display:flex; align-items:center; justify-content:center;
+    background:var(--line); flex-shrink:0; font-size:15px; transition:background .3s;}
+  .stage.active .icon{background:var(--stage-color); }
+  .stage .body{flex:1; min-width:0;}
+  .stage .title{font-family:var(--mono); font-size:13px; font-weight:600;}
+  .stage .desc{font-size:12px; color:var(--text-mid); margin-top:2px;}
+  .stage .verdict{font-family:var(--mono); font-size:11px; color:var(--text-dim); text-align:right; flex-shrink:0; max-width:130px;}
+  .stage.active .verdict{color:var(--stage-color); font-weight:600;}
+
+  .result{margin-top:6px;}
+  .result-card{border:1px solid var(--line); border-radius:8px; padding:16px; background:var(--panel-2); display:none;}
+  .result-card.show{display:block;}
+  .result-headline{display:flex; align-items:center; gap:10px; margin-bottom:10px;}
+  .badge{font-family:var(--mono); font-size:11px; font-weight:700; padding:4px 10px; border-radius:20px; letter-spacing:.03em;}
+  .badge.auto{background:color-mix(in srgb, var(--stage-bandit) 20%, transparent); color:var(--stage-bandit);}
+  .badge.human{background:color-mix(in srgb, var(--danger) 20%, transparent); color:var(--danger);}
+  .badge.llm{background:color-mix(in srgb, var(--stage-llm) 20%, transparent); color:var(--stage-llm);}
+  .kv{display:grid; grid-template-columns:auto 1fr; gap:6px 16px; font-family:var(--mono); font-size:12px; color:var(--text-mid);}
+  .kv b{color:var(--text-hi); font-weight:500;}
+  .empty{color:var(--text-dim); font-size:13px; font-family:var(--mono); text-align:center; padding:30px 0;}
+  .reply-box{margin-top:14px; padding:14px; border-radius:6px; background:var(--bg); border:1px solid var(--line); font-size:13px; line-height:1.55; color:var(--text-hi);}
+  .reply-label{font-family:var(--mono); font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:var(--text-dim); margin-bottom:8px;}
+
+  /* audit log */
+  .log{margin-top:20px;}
+  .log-entry{display:flex; gap:10px; font-family:var(--mono); font-size:11.5px; padding:7px 0; border-bottom:1px solid var(--line); color:var(--text-mid);}
+  .log-entry:last-child{border-bottom:none;}
+  .log-entry .t{color:var(--text-dim); flex-shrink:0; width:64px;}
+  .log-entry .s{color:var(--stage-classify); flex-shrink:0; width:150px;}
+  .log-entry .d{color:var(--text-mid); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+
+  .hint{font-size:11px; color:var(--text-dim); margin-top:10px; line-height:1.5;}
+  code{background:var(--panel-2); padding:1px 5px; border-radius:3px; font-family:var(--mono); font-size:11px;}
+
+  /* review queue */
+  .queue-panel{margin-top:20px;}
+  .queue-item{border:1px solid var(--line); border-radius:8px; padding:14px; background:var(--panel-2); margin-bottom:10px;}
+  .queue-item .qtext{font-size:13px; color:var(--text-hi); margin-bottom:8px; line-height:1.5;}
+  .queue-meta{display:flex; gap:14px; flex-wrap:wrap; font-family:var(--mono); font-size:11px; color:var(--text-dim); margin-bottom:10px;}
+  .queue-meta b{color:var(--danger);}
+  .queue-form{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
+  .queue-form select, .queue-form input[type=text]{
+    background:var(--bg); border:1px solid var(--line); color:var(--text-hi);
+    border-radius:5px; padding:7px 10px; font-family:var(--sans); font-size:12px;
+  }
+  .queue-form select{flex-shrink:0;}
+  .queue-form input[type=text]{flex:1; min-width:120px;}
+  .resolve-btn{
+    background:var(--stage-bandit); color:#0a1f14; border:none; border-radius:5px;
+    padding:7px 14px; font-family:var(--mono); font-size:11px; font-weight:600; cursor:pointer; flex-shrink:0;
+  }
+  .resolve-btn:hover{filter:brightness(1.1);}
+  .queue-count{background:var(--danger); color:#fff; font-family:var(--mono); font-size:10px; font-weight:700;
+    padding:2px 7px; border-radius:10px; margin-left:8px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <div class="mark">CASCADE<span>.</span></div>
+      <div class="tag">triage control room</div>
+    </div>
+    <div class="status" id="apiStatus"><span class="dot" id="apiDot"></span><span id="apiText">checking api…</span></div>
+  </header>
+
+  <div class="grid">
+    <!-- LEFT: submit -->
+    <div class="panel">
+      <h2>Submit ticket</h2>
+      <label>Ticket text</label>
+      <textarea id="ticketText" rows="4" placeholder="e.g. I was charged twice for my subscription this month">I was charged twice for my subscription this month</textarea>
+
+      <div class="row2">
+        <div>
+          <label>Account age (days)</label>
+          <input id="accountAge" type="number" value="400">
+        </div>
+        <div>
+          <label>Prior tickets (30d)</label>
+          <input id="priorTickets" type="number" value="1">
+        </div>
+      </div>
+
+      <div class="presets">
+        <button class="preset" data-preset="billing">clear billing</button>
+        <button class="preset" data-preset="novel">gibberish / novel</button>
+        <button class="preset" data-preset="ambiguous">ambiguous</button>
+      </div>
+
+      <button class="submit" id="submitBtn">RUN TRIAGE →</button>
+      <div class="hint">Calls <code>POST /triage</code> on your local FastAPI service. Make sure <code>uvicorn</code> is running on <code>localhost:8000</code>, and that CORS is enabled (see bottom of page).</div>
+    </div>
+
+    <!-- RIGHT: pipeline + result -->
+    <div class="panel">
+      <h2>Decision pipeline</h2>
+      <div class="pipeline" id="pipeline">
+        <div class="stage" data-stage="classify" style="--stage-color:var(--stage-classify)">
+          <div class="num">01</div>
+          <div class="icon">◆</div>
+          <div class="body">
+            <div class="title">Classify + calibrate</div>
+            <div class="desc">Random Forest predicts category, isotonic calibration checks confidence</div>
+          </div>
+          <div class="verdict" id="v-classify">—</div>
+        </div>
+        <div class="stage" data-stage="novelty" style="--stage-color:var(--stage-novelty)">
+          <div class="num">02</div>
+          <div class="icon">◇</div>
+          <div class="body">
+            <div class="title">Novelty + anomaly check</div>
+            <div class="desc">HDBSCAN clustering + Isolation Forest on account pattern</div>
+          </div>
+          <div class="verdict" id="v-novelty">—</div>
+        </div>
+        <div class="stage" data-stage="llm" style="--stage-color:var(--stage-llm)">
+          <div class="num">03</div>
+          <div class="icon">✦</div>
+          <div class="body">
+            <div class="title">LLM agent</div>
+            <div class="desc">Local Ollama model drafts a reply — only reached here</div>
+          </div>
+          <div class="verdict" id="v-llm">—</div>
+        </div>
+        <div class="stage" data-stage="bandit" style="--stage-color:var(--stage-bandit)">
+          <div class="num">04</div>
+          <div class="icon">◈</div>
+          <div class="body">
+            <div class="title">Strategy bandit</div>
+            <div class="desc">Thompson Sampling picks the response strategy to try</div>
+          </div>
+          <div class="verdict" id="v-bandit">—</div>
+        </div>
+      </div>
+
+      <div class="result">
+        <div class="empty" id="emptyState">Submit a ticket to see the cascade in action.</div>
+        <div class="result-card" id="resultCard">
+          <div class="result-headline">
+            <span class="badge" id="resultBadge">—</span>
+            <span id="resultTitle" style="font-family:var(--mono); font-size:13px; color:var(--text-mid);"></span>
+          </div>
+          <div class="kv" id="resultKv"></div>
+          <div class="reply-box" id="replyBox" style="display:none;">
+            <div class="reply-label" id="replyLabel">Reply sent to customer</div>
+            <div id="replyText"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="log">
+        <h2 style="margin-top:24px;">Session log</h2>
+        <div id="logFeed"><div class="empty">No requests yet this session.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel queue-panel">
+    <h2>Pending human review <span class="queue-count" id="queueCount" style="display:none;">0</span></h2>
+    <div id="queueList"><div class="empty">No tickets currently awaiting review.</div></div>
+  </div>
+
+</div>
+
+<script>
+const API_BASE = "http://localhost:8000";
+const N8N_WEBHOOK_URL = "http://localhost:5678/webhook/cfd92b06-d6f1-4822-9b93-4a60bb519e58";
+let ticketCounter = 0;
+
+const presets = {
+  billing: { text: "I was charged twice for my subscription this month", age: 400, prior: 1 },
+  novel: { text: "asdkfj alksdjf random gibberish text here", age: 1, prior: 20 },
+  ambiguous: { text: "I cannot log in to check my billing invoice", age: 500, prior: 1 },
+};
+
+document.querySelectorAll(".preset").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const p = presets[btn.dataset.preset];
+    document.getElementById("ticketText").value = p.text;
+    document.getElementById("accountAge").value = p.age;
+    document.getElementById("priorTickets").value = p.prior;
+  });
+});
+
+async function checkApi(){
+  const dot = document.getElementById("apiDot");
+  const text = document.getElementById("apiText");
+  try{
+    const res = await fetch(API_BASE + "/docs", { method: "GET" });
+    if(res.ok){ dot.className = "dot on"; text.textContent = "api connected — localhost:8000"; }
+    else throw new Error();
+  }catch(e){
+    dot.className = "dot off"; text.textContent = "api unreachable — start uvicorn on :8000";
+  }
+}
+checkApi();
+setInterval(checkApi, 8000);
+
+function resetPipeline(){
+  document.querySelectorAll(".stage").forEach(s => { s.classList.remove("active","skipped"); });
+  ["classify","novelty","llm","bandit"].forEach(s => document.getElementById("v-"+s).textContent = "—");
+}
+
+function markStage(name, verdict, state){
+  const el = document.querySelector(`.stage[data-stage="${name}"]`);
+  el.classList.add(state === "skip" ? "skipped" : "active");
+  document.getElementById("v-"+name).textContent = verdict;
+}
+
+function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+function addLogEntry(stage, detail){
+  const feed = document.getElementById("logFeed");
+  const empty = feed.querySelector(".empty");
+  if(empty) empty.remove();
+  const now = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  const entry = document.createElement("div");
+  entry.className = "log-entry";
+  entry.innerHTML = `<span class="t">${now}</span><span class="s">${stage}</span><span class="d">${detail}</span>`;
+  feed.prepend(entry);
+}
+
+async function runTriage(){
+  const btn = document.getElementById("submitBtn");
+  btn.disabled = true; btn.textContent = "RUNNING…";
+  resetPipeline();
+  document.getElementById("resultCard").classList.remove("show");
+  document.getElementById("emptyState").style.display = "block";
+
+  ticketCounter++;
+  const payload = {
+    ticket_id: "web_" + ticketCounter,
+    text: document.getElementById("ticketText").value,
+    account_age_days: parseInt(document.getElementById("accountAge").value) || 0,
+    prior_tickets_30d: parseInt(document.getElementById("priorTickets").value) || 0,
+  };
+
+  // Stage 1 always runs
+  await sleep(250);
+  markStage("classify", "running…", "active");
+
+  try{
+    const res = await fetch(API_BASE + "/triage", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(payload)
+    });
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+
+    await sleep(400);
+    markStage("classify", (data.category || "—") + " " + (data.confidence ? (data.confidence*100).toFixed(1)+"%" : ""), "active");
+    addLogEntry("stage1_classifier", `category=${data.category || "n/a"} conf=${data.confidence ? data.confidence.toFixed(3) : "n/a"}`);
+
+    if(data.action === "auto_reply"){
+      await sleep(350);
+      markStage("novelty", "skipped", "skip");
+      markStage("llm", "skipped", "skip");
+      markStage("bandit", "skipped", "skip");
+      showResult("auto", "Auto-resolved — no LLM needed", {
+        "Category": data.category, "Confidence": (data.confidence*100).toFixed(2)+"%",
+        "Threshold used": data.threshold_used, "LLM used": "false"
+      }, data.reply_text, "Canned reply (no LLM used)");
+      addLogEntry("auto_resolved", `threshold=${data.threshold_used}`);
+    } else if(data.action === "route_to_human"){
+      await sleep(350);
+      markStage("novelty", data.reason || "flagged", "active");
+      markStage("llm", "skipped", "skip");
+      markStage("bandit", "skipped", "skip");
+      showResult("human", "Routed to human review", {
+        "Reason": data.reason, "LLM used": "false"
+      }, null);
+      addLogEntry("stage2_flagged", `reason=${data.reason}`);
+
+      // Fire the same ticket through n8n so its false-branch Discord
+      // notification triggers — this is the only outcome that should
+      // ping Discord, per the current design.
+      try{
+        await fetch(N8N_WEBHOOK_URL, {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify(payload)
+        });
+        addLogEntry("discord_notify", "sent via n8n");
+      }catch(e){
+        addLogEntry("discord_notify_failed", e.message);
+      }
+    } else if(data.action === "needs_llm_agent"){
+      await sleep(350);
+      markStage("novelty", "clear — familiar topic", "active");
+      await sleep(350);
+      markStage("llm", "reached — drafting reply", "active");
+
+      // main.py doesn't generate the reply itself — call the existing
+      // n8n workflow (unchanged) purely to get the LLM-drafted text.
+      let n8nReply = null;
+      try{
+        const n8nRes = await fetch(N8N_WEBHOOK_URL, {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify(payload)
+        });
+        if(n8nRes.ok){
+          const n8nData = await n8nRes.json();
+          n8nReply = n8nData.output || n8nData.reply_text || null;
+        }
+      }catch(e){
+        n8nReply = "[Could not reach n8n webhook — check it's Active and the URL is correct]";
+      }
+
+      await sleep(400);
+      markStage("bandit", data.response_strategy || "—", "active");
+      showResult("llm", "Escalated to LLM agent", {
+        "Category": data.category, "Threshold used": data.threshold_used,
+        "Response strategy": data.response_strategy, "LLM used": "true"
+      }, n8nReply, "LLM-drafted reply (via n8n)");
+      addLogEntry("routed_to_llm", `strategy=${data.response_strategy}`);
+    }
+
+  }catch(err){
+    document.getElementById("emptyState").style.display = "block";
+    document.getElementById("emptyState").textContent = "Request failed — is uvicorn running on :8000? (" + err.message + ")";
+    addLogEntry("error", err.message);
+  }
+
+  btn.disabled = false; btn.textContent = "RUN TRIAGE →";
+}
+
+function showResult(kind, title, kv, replyText, replyLabel){
+  document.getElementById("emptyState").style.display = "none";
+  const card = document.getElementById("resultCard");
+  card.classList.add("show");
+  const badge = document.getElementById("resultBadge");
+  badge.className = "badge " + kind;
+  badge.textContent = kind === "auto" ? "AUTO-RESOLVED" : kind === "human" ? "HUMAN REVIEW" : "LLM AGENT";
+  document.getElementById("resultTitle").textContent = title;
+  const kvEl = document.getElementById("resultKv");
+  kvEl.innerHTML = "";
+  Object.entries(kv).forEach(([k,v]) => {
+    kvEl.innerHTML += `<span>${k}</span><b>${v}</b>`;
+  });
+
+  const replyBox = document.getElementById("replyBox");
+  if(replyText){
+    replyBox.style.display = "block";
+    document.getElementById("replyLabel").textContent = replyLabel || "Reply";
+    document.getElementById("replyText").textContent = replyText;
+  } else {
+    replyBox.style.display = "none";
+  }
+}
+
+document.getElementById("submitBtn").addEventListener("click", runTriage);
+
+// ---- Review queue ----
+const CATEGORY_OPTIONS = ["billing", "technical", "account", "general", "unclear"];
+
+async function loadReviewQueue(){
+  try{
+    const res = await fetch(API_BASE + "/review-queue");
+    if(!res.ok) throw new Error();
+    const items = await res.json();
+    renderQueue(items);
+  }catch(e){
+    // silently skip — API may not have this endpoint yet, or is unreachable
+  }
+}
+
+function renderQueue(items){
+  const list = document.getElementById("queueList");
+  const countBadge = document.getElementById("queueCount");
+
+  if(items.length === 0){
+    list.innerHTML = `<div class="empty">No tickets currently awaiting review.</div>`;
+    countBadge.style.display = "none";
+    return;
+  }
+
+  countBadge.style.display = "inline-block";
+  countBadge.textContent = items.length;
+
+  list.innerHTML = "";
+  items.forEach(item => {
+    const div = document.createElement("div");
+    div.className = "queue-item";
+    div.innerHTML = `
+      <div class="qtext">"${item.text}"</div>
+      <div class="queue-meta">
+        <span>flagged: <b>${item.reason}</b></span>
+        <span>predicted: ${item.predicted_category} (${(item.predicted_confidence*100).toFixed(1)}%)</span>
+        <span>account age: ${item.account_age_days}d</span>
+        <span>prior tickets: ${item.prior_tickets_30d}</span>
+      </div>
+      <div class="queue-form">
+        <select id="cat-${item.ticket_id}">
+          ${CATEGORY_OPTIONS.map(c => `<option value="${c}">${c}</option>`).join("")}
+        </select>
+        <input type="text" id="notes-${item.ticket_id}" placeholder="Notes (optional)">
+        <button class="resolve-btn" data-ticket="${item.ticket_id}">MARK RESOLVED</button>
+      </div>
+    `;
+    list.appendChild(div);
+  });
+
+  document.querySelectorAll(".resolve-btn").forEach(btn => {
+    btn.addEventListener("click", () => resolveTicket(btn.dataset.ticket));
+  });
+}
+
+async function resolveTicket(ticketId){
+  const category = document.getElementById(`cat-${ticketId}`).value;
+  const notes = document.getElementById(`notes-${ticketId}`).value;
+
+  try{
+    await fetch(API_BASE + "/review-queue/resolve", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ ticket_id: ticketId, correct_category: category, notes: notes })
+    });
+    addLogEntry("human_review_resolved", `ticket=${ticketId} category=${category}`);
+    loadReviewQueue();
+  }catch(e){
+    alert("Failed to resolve ticket — check the API is reachable.");
+  }
+}
+
+loadReviewQueue();
+setInterval(loadReviewQueue, 10000);
+</script>
+</body>
+</html>
