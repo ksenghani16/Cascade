@@ -91,7 +91,6 @@ Measured with a 500-ticket load test on held-out phrasing (not seen during train
 |---|---|
 | Tickets resolved without touching the LLM | **59.0%** |
 | Classification accuracy on auto-resolved decisions | **100%** |
-| Overall classification accuracy | **100%** |
 | Latency regression found & fixed via load testing | **46% reduction** in non-LLM-path latency |
 
 > 🔍 **A real bug I found through load testing:** the audit log was re-reading its entire file on every single write just to find the last entry — an O(n) bottleneck that compounded as the log grew. Fixed by caching the last hash in memory, cutting non-LLM-path latency by 46%.
