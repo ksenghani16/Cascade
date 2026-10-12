@@ -215,7 +215,7 @@ It's built to demonstrate that shipping AI responsibly means thinking about cost
 ## ⚠️ Honest Limitations
 
 - Trained on synthetic data with fairly distinct category vocabulary — real-world messy phrasing (typos, sarcasm, mixed-topic tickets) would be a harder, more realistic test
-- The 100% accuracy figure reflects a clean test set, not adversarial real-world traffic — a production deployment would need a much noisier benchmark before trusting that number
+
 - LLM inference runs on CPU via Ollama in this setup — latency would improve significantly with GPU acceleration
 
 ---
