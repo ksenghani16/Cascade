@@ -30,40 +30,41 @@ Every "AI-powered support" demo does the same thing: pipe 100% of incoming reque
 This diagram shows how a support ticket moves through Cascade's classification, safety checks, response generation, human review, and feedback pipeline.
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'background': '#ffffff', 'mainBkg': '#ffffff', 'nodeBkg': '#ffffff', 'clusterBkg': '#ffffff', 'primaryColor': '#ffffff', 'secondaryColor': '#ffffff', 'tertiaryColor': '#ffffff', 'primaryBorderColor': '#000000', 'nodeBorder': '#000000', 'clusterBorder': '#000000', 'primaryTextColor': '#000000', 'textColor': '#000000', 'nodeTextColor': '#000000', 'lineColor': '#000000', 'edgeLabelBackground': '#ffffff', 'fontFamily': 'Inter, Arial, sans-serif'}}}%%
 flowchart TD
-    A["Customer submits a support ticket"] --> B["Cascade Dashboard<br/>dashboard.html"]
-    B --> C["FastAPI Backend<br/>POST /triage"]
-    C --> D["Text Embedding<br/>Sentence Transformer"]
-    D --> E["Combine text vector + account features"]
-    E --> F["Stage 1: Random Forest Classifier<br/>Predict category + confidence"]
-    F --> G["Threshold Bandit<br/>Choose confidence threshold"]
+    A("Customer submits a support ticket") --> B("Cascade Dashboard<br/>dashboard.html")
+    B --> C("FastAPI Backend<br/>POST /triage")
+    C --> D("Text Embedding<br/>Sentence Transformer")
+    D --> E("Combine text vector and<br/>account features")
+    E --> F("Stage 1: Random Forest Classifier<br/>Predict category and confidence")
+    F --> G("Threshold Bandit<br/>Choose confidence threshold")
     G --> H{"Confidence high enough?"}
 
-    H -->|Yes| I["Automatic Reply<br/>Predefined category template"]
-    H -->|No| J["Stage 2: Novelty Detection<br/>HDBSCAN clustering"]
+    H -->|Yes| I("Automatic Reply<br/>Predefined category template")
+    H -->|No| J("Stage 2: Novelty Detection<br/>HDBSCAN clustering")
 
-    J --> K["Anomaly Detection<br/>Isolation Forest"]
-    K --> L{"Novel ticket or unusual account pattern?"}
+    J --> K("Anomaly Detection<br/>Isolation Forest")
+    K --> L{"Novel ticket or<br/>unusual account pattern?"}
 
-    L -->|Yes| M["Human Review Queue<br/>review_queue.json"]
-    M --> N["Human reviews ticket and records correct category"]
-    N --> O["Resolve review ticket"]
+    L -->|Yes| M("Human Review Queue<br/>review_queue.json")
+    M --> N("Human reviews ticket and<br/>records correct category")
+    N --> O("Resolve review ticket")
 
-    L -->|No| P["Stage 3: LLM Agent via n8n"]
-    P --> Q["Local Ollama LLM<br/>Drafts a contextual reply"]
-    Q --> R["Stage 4: Strategy Bandit<br/>Select response strategy"]
-    R --> S["Return drafted reply and strategy to dashboard"]
+    L -->|No| P("Stage 3: LLM Agent via n8n")
+    P --> Q("Local Ollama LLM<br/>Drafts a contextual reply")
+    Q --> R("Stage 4: Strategy Bandit<br/>Select response strategy")
+    R --> S("Return drafted reply and<br/>strategy to dashboard")
 
-    I --> T["Display result on Dashboard"]
+    I --> T("Display result on Dashboard")
     O --> T
     S --> T
 
-    T --> U["Collect outcome feedback<br/>Reopened, resolution time, cost"]
-    U --> V["POST /feedback"]
-    V --> W["Update threshold and strategy bandits"]
-    W --> X["Save learning state in JSON files"]
+    T --> U("Collect outcome feedback<br/>Reopened, resolution time, cost")
+    U --> V("POST /feedback")
+    V --> W("Update threshold and<br/>strategy bandits")
+    W --> X("Save learning state<br/>in JSON files")
 
-    C -.-> Y["Audit Log<br/>audit_log.jsonl"]
+    C -.-> Y("Audit Log<br/>audit_log.jsonl")
     F -.-> Y
     G -.-> Y
     J -.-> Y
@@ -71,40 +72,33 @@ flowchart TD
     N -.-> Y
     P -.-> Y
     R -.-> Y
-
-    classDef mono fill:#ffffff,stroke:#000000,color:#000000;
-    class A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y mono;
-    linkStyle default stroke:#000000,color:#000000;
 ```
 
-## 2. Model Training and Deployment Workflow
+## 2. Model Training Workflow
 
 This diagram shows how the training data is prepared, how the models are trained and saved, and how FastAPI loads them to process tickets.
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'background': '#ffffff', 'mainBkg': '#ffffff', 'nodeBkg': '#ffffff', 'clusterBkg': '#ffffff', 'primaryColor': '#ffffff', 'secondaryColor': '#ffffff', 'tertiaryColor': '#ffffff', 'primaryBorderColor': '#000000', 'nodeBorder': '#000000', 'clusterBorder': '#000000', 'primaryTextColor': '#000000', 'textColor': '#000000', 'nodeTextColor': '#000000', 'lineColor': '#000000', 'edgeLabelBackground': '#ffffff', 'fontFamily': 'Inter, Arial, sans-serif'}}}%%
 flowchart TD
-    A["Generate synthetic tickets<br/>generate_synthetic_tickets.py"] --> B["Ticket dataset<br/>data/tickets.csv"]
+    A("Generate synthetic tickets<br/>generate_synthetic_tickets.py") --> B("Ticket dataset<br/>data/tickets.csv")
 
-    B --> C["Train classifier<br/>train_classifier.py"]
-    C --> D["Text embeddings + account features"]
-    D --> E["Random Forest + isotonic calibration"]
-    E --> F["Save classifier.joblib"]
+    B --> C("Train classifier<br/>train_classifier.py")
+    C --> D("Text embeddings and<br/>account features")
+    D --> E("Random Forest and<br/>isotonic calibration")
+    E --> F("Save classifier.joblib")
 
-    B --> G["Fit unsupervised models<br/>fit_unsupervised_models.py"]
-    G --> H["HDBSCAN clustering model"]
-    G --> I["Isolation Forest anomaly model"]
+    B --> G("Fit unsupervised models<br/>fit_unsupervised_models.py")
+    G --> H("HDBSCAN clustering model")
+    G --> I("Isolation Forest anomaly model")
 
-    H --> J["Save cluster_model.joblib"]
-    I --> K["Save anomaly_model.joblib"]
+    H --> J("Save cluster_model.joblib")
+    I --> K("Save anomaly_model.joblib")
 
-    F --> L["FastAPI loads saved models"]
+    F --> L("FastAPI loads saved models")
     J --> L
     K --> L
-    L --> M["Ready to process live tickets"]
-
-    classDef mono fill:#ffffff,stroke:#000000,color:#000000;
-    class A,B,C,D,E,F,G,H,I,J,K,L,M mono;
-    linkStyle default stroke:#000000,color:#000000;
+    L --> M("Ready to process live tickets")
 ```
 
 ### How the Two Diagrams Differ
@@ -146,7 +140,7 @@ Measured with a 500-ticket load test on held-out phrasing (not seen during train
 ## 🛠️ Tech Stack
 
 ```
-Language          Python 3.11+
+Language           Python 3.11+
 API                FastAPI
 Classifier         scikit-learn (Random Forest + Isotonic Calibration)
 Clustering         HDBSCAN
@@ -168,17 +162,17 @@ Notifications      Discord webhook
 A live control-room view of the cascade — submit a ticket and watch it move through each stage in real time, with skipped stages dimming out so you can *see* the cost-saving happening, not just read about it.
 
 ```
-┌─────────────────────┐      ┌────────────────────────────────────┐
-│   SUBMIT TICKET      │      │   DECISION PIPELINE                 │
-│                       │      │                                      │
-│  [ticket text box]    │      │  01 ● Classify + calibrate  billing 99.8% │
-│  Account age: [400]   │ ──▶  │  02 ○ Novelty + anomaly      skipped │
-│  Prior tickets: [1]   │      │  03 ○ LLM agent              skipped │
-│                       │      │  04 ○ Strategy bandit        skipped │
-│  [ RUN TRIAGE → ]     │      │                                      │
-└─────────────────────┘      │  ✅ AUTO-RESOLVED                    │
-                               │  Reply: "Thanks for reaching out..." │
-                               └────────────────────────────────────┘
+┌─────────────────────┐      ┌─────────────────────────────────────────┐
+│   SUBMIT TICKET     │      │   DECISION PIPELINE                     │
+│                     │      │                                         │
+│  [ticket text box]  │      │  01 ● Classify + calibrate  billing 99.8% │
+│  Account age: [400] │ ──▶  │  02 ○ Novelty + anomaly     skipped     │
+│  Prior tickets: [1] │      │  03 ○ LLM agent             skipped     │
+│                     │      │  04 ○ Strategy bandit       skipped     │
+│  [ RUN TRIAGE → ]   │      │                                         │
+└─────────────────────┘      │  ✅ AUTO-RESOLVED                       │
+                             │  Reply: "Thanks for reaching out..."    │
+                             └─────────────────────────────────────────┘
 ```
 
 Also includes a **Pending Human Review** panel — flagged tickets can be reviewed, corrected, and resolved right from the dashboard, feeding straight back into the audit log and future retraining data.
@@ -223,25 +217,25 @@ Full step-by-step build guide with every line of code explained: [`docs/BUILD_GU
 
 ```
 cascade/
-├── ml_service/              # FastAPI service — the decision engine
-│   ├── main.py               # /triage, /feedback, /review-queue endpoints
-│   ├── embeddings.py          # text → vector
-│   ├── clustering.py          # HDBSCAN novelty detection
-│   ├── anomaly.py             # Isolation Forest anomaly detection
-│   ├── threshold_bandit.py    # adaptive confidence thresholds
-│   ├── bandit.py              # response-strategy bandit
-│   ├── reward.py               # multi-objective reward function
-│   └── audit_log.py           # hash-chained tamper-evident log
-├── training/                # offline training + evaluation scripts
+├── ml_service/                  # FastAPI service — the decision engine
+│   ├── main.py                  # /triage, /feedback, /review-queue endpoints
+│   ├── embeddings.py            # text → vector
+│   ├── clustering.py            # HDBSCAN novelty detection
+│   ├── anomaly.py               # Isolation Forest anomaly detection
+│   ├── threshold_bandit.py      # adaptive confidence thresholds
+│   ├── bandit.py                # response-strategy bandit
+│   ├── reward.py                # multi-objective reward function
+│   └── audit_log.py             # hash-chained tamper-evident log
+├── training/                    # offline training + evaluation scripts
 │   ├── generate_synthetic_tickets.py
 │   ├── train_classifier.py
 │   ├── fit_unsupervised_models.py
-│   ├── load_test.py           # the 500-ticket benchmark
-│   └── retrain_job.py         # weekly active-learning retrain
+│   ├── load_test.py             # the 500-ticket benchmark
+│   └── retrain_job.py           # weekly active-learning retrain
 ├── frontend/
-│   └── cascade_dashboard.html  # live pipeline visualization
-├── n8n_workflows/             # exported orchestration workflows
-└── storage/                   # trained models, audit log, bandit state
+│   └── cascade_dashboard.html   # live pipeline visualization
+├── n8n_workflows/               # exported orchestration workflows
+└── storage/                     # trained models, audit log, bandit state
 ```
 
 ---
@@ -260,7 +254,6 @@ It's built to demonstrate that shipping AI responsibly means thinking about cost
 ## ⚠️ Honest Limitations
 
 - Trained on synthetic data with fairly distinct category vocabulary — real-world messy phrasing (typos, sarcasm, mixed-topic tickets) would be a harder, more realistic test
-
 - LLM inference runs on CPU via Ollama in this setup — latency would improve significantly with GPU acceleration
 
 ---
