@@ -25,45 +25,90 @@ Every "AI-powered support" demo does the same thing: pipe 100% of incoming reque
 
 ---
 
-## 🗺️ How it works
+## How It Works
+
+### 1. Complete System Workflow
+
+This diagram shows the complete ticket journey, from submission to decision-making, human review, feedback, and adaptive learning.
 
 ```mermaid
 flowchart TD
-    A["📩 Incoming Ticket<br/><i>text + account metadata</i>"] --> B
+    A["Incoming Support Ticket"] --> B["Dashboard"]
+    B --> C["FastAPI Backend"]
+    C --> D["Text Embedding and Account Features"]
+    D --> E["Random Forest Classifier"]
+    E --> F["Isotonic Calibration"]
+    F --> G["Threshold Bandit"]
+    G --> H{"Confidence Meets Threshold?"}
 
-    subgraph S1["Stage 1 — Classify + Calibrate"]
-        B["Random Forest Classifier<br/>+ Isotonic Calibration"]
-        B --> C{"Confident<br/>enough?"}
-    end
+    H -->|Yes| I["Automatic Reply"]
+    H -->|No| J["HDBSCAN Novelty Detection"]
+    J --> K["Isolation Forest Anomaly Detection"]
+    K --> L{"Novel or Anomalous?"}
 
-    C -->|"Yes"| D["✅ Auto-Reply<br/><i>instant, zero LLM cost</i>"]
+    L -->|Yes| M["Human Review Queue"]
+    L -->|No| N["n8n Workflow"]
+    N --> O["Local Ollama LLM"]
+    O --> P["Draft Contextual Reply"]
+    P --> Q["Strategy Bandit"]
 
-    C -->|"No"| E
+    I --> R["Return Result to Dashboard"]
+    Q --> R
+    M --> S["Human Reviews and Corrects Ticket"]
+    S --> T["Record Correction and Feedback"]
 
-    subgraph S2["Stage 2 — Safety Net"]
-        E["HDBSCAN Novelty Check<br/>+ Isolation Forest Anomaly Check"]
-        E --> F{"Novel or<br/>anomalous?"}
-    end
+    R --> U["Record Decision in Audit Log"]
+    T --> U
+    T --> V["Active Learning and Retraining"]
+    R --> W["Collect Resolution Outcome"]
+    W --> X["Feedback API"]
+    X --> Y["Update Threshold and Strategy Bandits"]
+    Y --> Z["Save Bandit State"]
+```
 
-    F -->|"Yes"| G["🚩 Human Review Queue<br/><i>+ Discord notification</i>"]
+### 2. Model Training and Learning Workflow
 
-    F -->|"No"| H
+This diagram shows how the models are trained before deployment and how feedback helps improve the system over time.
 
-    subgraph S3["Stage 3 — LLM Agent"]
-        H["🤖 Local Ollama Model<br/><i>drafts a reply</i>"]
-    end
+```mermaid
+flowchart TD
+    A["Generate Synthetic Ticket Data"] --> B["Training Dataset"]
+    B --> C["Generate Text Embeddings"]
+    C --> D["Combine Embeddings and Account Features"]
+    D --> E["Train Random Forest Classifier"]
+    E --> F["Calibrate Probabilities"]
+    F --> G["Evaluate Classifier"]
+    G --> H["Save Classifier Model"]
 
-    H --> I
+    B --> I["Fit HDBSCAN Model"]
+    I --> J["Save Clustering Model"]
 
-    subgraph S4["Stage 4 — Bandit Optimization"]
-        I["Thompson Sampling Bandit<br/>picks response strategy"]
-    end
+    B --> K["Fit Isolation Forest"]
+    K --> L["Save Anomaly Model"]
 
-    D --> J["📝 Tamper-Evident Audit Log<br/><i>hash-chained</i>"]
-    G --> J
-    I --> J
+    H --> M["FastAPI Loads Trained Models"]
+    J --> M
+    L --> M
 
-    G -.->|"human correction"| K["🔁 Active Learning<br/>feeds back into classifier"]
+    M --> N["Process Incoming Tickets"]
+    N --> O["Collect Human Corrections and Outcomes"]
+    O --> P["Store Review Data and Feedback"]
+    P --> Q["Weekly Active-Learning Retraining"]
+    Q --> R["Evaluate Updated Models"]
+    R --> H
+
+    O --> S["Update Threshold Bandit"]
+    O --> T["Update Response Strategy Bandit"]
+    S --> U["Persist Bandit State"]
+    T --> U
+```
+
+### How the Two Diagrams Differ
+
+- **System workflow:** Explains how a ticket moves through classification, safety checks, LLM processing, human review, and feedback.
+- **Training and learning workflow:** Explains how the models are trained, loaded, evaluated, and improved using feedback.
+
+The diagrams use standard Mermaid shapes and default styling, with no custom colours or decorative elements.
 ```
 
 **The core idea:** each stage only sees what the stage before it couldn't confidently resolve. By the time a ticket reaches the LLM, it's already been filtered twice — which is exactly why the expensive step stays the *least*-used one, not the default one.
