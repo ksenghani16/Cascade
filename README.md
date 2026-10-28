@@ -27,48 +27,39 @@ Every "AI-powered support" demo does the same thing: pipe 100% of incoming reque
 
 ## 1. Complete Cascade System Workflow
 
-```mermaid
-flowchart TD
-    A["Customer submits a support ticket"]
-    B["Cascade Dashboard<br/>dashboard.html"]
-    C["FastAPI Backend<br/>POST /triage"]
-    D["Text Embedding<br/>Sentence Transformer"]
-    E["Combine text vector + account features"]
-    F["Stage 1: Random Forest Classifier<br/>Predict category + confidence"]
-    G["Threshold Bandit<br/>Choose confidence threshold"]
-    H{"Confidence high enough?"}
 
-    A --> B
-    B --> C
-    C --> D
-    D --> E
-    E --> F
-    F --> G
-    G --> H
+flowchart TD
+    A["Customer submits a support ticket"] --> B["Cascade Dashboard<br/>dashboard.html"]
+    B --> C["FastAPI Backend<br/>POST /triage"]
+    C --> D["Text Embedding<br/>Sentence Transformer"]
+    D --> E["Combine text vector and account features"]
+    E --> F["Stage 1: Random Forest Classifier<br/>Predict category and confidence"]
+    F --> G["Threshold Bandit<br/>Choose confidence threshold"]
+    G --> H{"Confidence high enough?"}
 
     H -->|Yes| I["Automatic Reply<br/>Predefined category template"]
     H -->|No| J["Stage 2: Novelty Detection<br/>HDBSCAN clustering"]
 
     J --> K["Anomaly Detection<br/>Isolation Forest"]
-    K --> L{"Novel ticket or<br/>unusual account pattern?"}
+    K --> L{"Novel ticket or unusual account pattern?"}
 
     L -->|Yes| M["Human Review Queue<br/>review_queue.json"]
-    M --> N["Human reviews ticket<br/>and records correct category"]
+    M --> N["Human reviews ticket and records correct category"]
     N --> O["Resolve review ticket"]
 
     L -->|No| P["Stage 3: LLM Agent via n8n"]
-    P --> Q["Local Ollama LLM<br/>Drafts a contextual reply"]
+    P --> Q["Local Ollama LLM<br/>Draft contextual reply"]
     Q --> R["Stage 4: Strategy Bandit<br/>Select response strategy"]
-    R --> S["Return drafted reply<br/>and strategy to dashboard"]
+    R --> S["Return drafted reply and strategy to dashboard"]
 
     I --> T["Display result on Dashboard"]
     O --> T
     S --> T
 
-    T --> U["Collect outcome feedback<br/>reopened, resolution time, cost"]
+    T --> U["Collect outcome feedback<br/>Reopened, resolution time, cost"]
     U --> V["POST /feedback"]
-    V --> W["Update threshold bandit<br/>and response strategy bandit"]
-    W --> X["Save learning state<br/>JSON files"]
+    V --> W["Update threshold and strategy bandits"]
+    W --> X["Save learning state in JSON files"]
 
     C -.-> Y["Audit Log<br/>audit_log.jsonl"]
     F -.-> Y
@@ -79,21 +70,19 @@ flowchart TD
     P -.-> Y
     R -.-> Y
 
-    classDef mono fill:#ffffff,stroke:#000000,color:#000000;
-    class A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y mono;
-    linkStyle default stroke:#000000,color:#000000;
-```
+    classDef mono fill:#ffffff,stroke:#000000,color:#000000
+    class A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y mono
+    linkStyle default stroke:#000000,color:#000000
 
 ## 2. Model Training and Deployment Workflow
 
-```mermaid
 flowchart TD
     A["Generate synthetic tickets<br/>generate_synthetic_tickets.py"]
     B["Ticket dataset<br/>data/tickets.csv"]
 
     C["Train classifier<br/>train_classifier.py"]
-    D["Text embeddings + account features"]
-    E["Random Forest + isotonic calibration"]
+    D["Text embeddings and account features"]
+    E["Random Forest and isotonic calibration"]
     F["Save classifier.joblib"]
 
     G["Fit unsupervised models<br/>fit_unsupervised_models.py"]
@@ -122,10 +111,10 @@ flowchart TD
     K --> L
     L --> M
 
-    classDef mono fill:#ffffff,stroke:#000000,color:#000000;
-    class A,B,C,D,E,F,G,H,I,J,K,L,M mono;
-    linkStyle default stroke:#000000,color:#000000;
-```
+    classDef mono fill:#ffffff,stroke:#000000,color:#000000
+    class A,B,C,D,E,F,G,H,I,J,K,L,M mono
+    linkStyle default stroke:#000000,color:#000000
+
 
 
 
