@@ -25,83 +25,109 @@ Every "AI-powered support" demo does the same thing: pipe 100% of incoming reque
 
 ---
 
-## How It Works
-
-### 1. Complete System Workflow
-
-This diagram shows the complete ticket journey, from submission to decision-making, human review, feedback, and adaptive learning.
+## 1. Complete Cascade System Workflow
 
 ```mermaid
 flowchart TD
-    A["Incoming Support Ticket"] --> B["Dashboard"]
-    B --> C["FastAPI Backend"]
-    C --> D["Text Embedding and Account Features"]
-    D --> E["Random Forest Classifier"]
-    E --> F["Isotonic Calibration"]
-    F --> G["Threshold Bandit"]
-    G --> H{"Confidence Meets Threshold?"}
+    A["Customer submits a support ticket"]
+    B["Cascade Dashboard<br/>dashboard.html"]
+    C["FastAPI Backend<br/>POST /triage"]
+    D["Text Embedding<br/>Sentence Transformer"]
+    E["Combine text vector + account features"]
+    F["Stage 1: Random Forest Classifier<br/>Predict category + confidence"]
+    G["Threshold Bandit<br/>Choose confidence threshold"]
+    H{"Confidence high enough?"}
 
-    H -->|Yes| I["Automatic Reply"]
-    H -->|No| J["HDBSCAN Novelty Detection"]
-    J --> K["Isolation Forest Anomaly Detection"]
-    K --> L{"Novel or Anomalous?"}
+    A --> B
+    B --> C
+    C --> D
+    D --> E
+    E --> F
+    F --> G
+    G --> H
 
-    L -->|Yes| M["Human Review Queue"]
-    L -->|No| N["n8n Workflow"]
-    N --> O["Local Ollama LLM"]
-    O --> P["Draft Contextual Reply"]
-    P --> Q["Strategy Bandit"]
+    H -->|Yes| I["Automatic Reply<br/>Predefined category template"]
+    H -->|No| J["Stage 2: Novelty Detection<br/>HDBSCAN clustering"]
 
-    I --> R["Return Result to Dashboard"]
-    Q --> R
-    M --> S["Human Reviews and Corrects Ticket"]
-    S --> T["Record Correction and Feedback"]
+    J --> K["Anomaly Detection<br/>Isolation Forest"]
+    K --> L{"Novel ticket or<br/>unusual account pattern?"}
 
-    R --> U["Record Decision in Audit Log"]
-    T --> U
-    T --> V["Active Learning and Retraining"]
-    R --> W["Collect Resolution Outcome"]
-    W --> X["Feedback API"]
-    X --> Y["Update Threshold and Strategy Bandits"]
-    Y --> Z["Save Bandit State"]
+    L -->|Yes| M["Human Review Queue<br/>review_queue.json"]
+    M --> N["Human reviews ticket<br/>and records correct category"]
+    N --> O["Resolve review ticket"]
+
+    L -->|No| P["Stage 3: LLM Agent via n8n"]
+    P --> Q["Local Ollama LLM<br/>Drafts a contextual reply"]
+    Q --> R["Stage 4: Strategy Bandit<br/>Select response strategy"]
+    R --> S["Return drafted reply<br/>and strategy to dashboard"]
+
+    I --> T["Display result on Dashboard"]
+    O --> T
+    S --> T
+
+    T --> U["Collect outcome feedback<br/>reopened, resolution time, cost"]
+    U --> V["POST /feedback"]
+    V --> W["Update threshold bandit<br/>and response strategy bandit"]
+    W --> X["Save learning state<br/>JSON files"]
+
+    C -.-> Y["Audit Log<br/>audit_log.jsonl"]
+    F -.-> Y
+    G -.-> Y
+    J -.-> Y
+    K -.-> Y
+    N -.-> Y
+    P -.-> Y
+    R -.-> Y
+
+    classDef mono fill:#ffffff,stroke:#000000,color:#000000;
+    class A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y mono;
+    linkStyle default stroke:#000000,color:#000000;
 ```
 
-### 2. Model Training and Learning Workflow
-
-This diagram shows how the models are trained before deployment and how feedback helps improve the system over time.
+## 2. Model Training and Deployment Workflow
 
 ```mermaid
 flowchart TD
-    A["Generate Synthetic Ticket Data"] --> B["Training Dataset"]
-    B --> C["Generate Text Embeddings"]
-    C --> D["Combine Embeddings and Account Features"]
-    D --> E["Train Random Forest Classifier"]
-    E --> F["Calibrate Probabilities"]
-    F --> G["Evaluate Classifier"]
-    G --> H["Save Classifier Model"]
+    A["Generate synthetic tickets<br/>generate_synthetic_tickets.py"]
+    B["Ticket dataset<br/>data/tickets.csv"]
 
-    B --> I["Fit HDBSCAN Model"]
-    I --> J["Save Clustering Model"]
+    C["Train classifier<br/>train_classifier.py"]
+    D["Text embeddings + account features"]
+    E["Random Forest + isotonic calibration"]
+    F["Save classifier.joblib"]
 
-    B --> K["Fit Isolation Forest"]
-    K --> L["Save Anomaly Model"]
+    G["Fit unsupervised models<br/>fit_unsupervised_models.py"]
+    H["HDBSCAN clustering model"]
+    I["Isolation Forest anomaly model"]
+    J["Save cluster_model.joblib"]
+    K["Save anomaly_model.joblib"]
 
-    H --> M["FastAPI Loads Trained Models"]
-    J --> M
+    L["FastAPI loads saved models"]
+    M["Ready to process live tickets"]
+
+    A --> B
+    B --> C
+    C --> D
+    D --> E
+    E --> F
+
+    B --> G
+    G --> H
+    G --> I
+    H --> J
+    I --> K
+
+    F --> L
+    J --> L
+    K --> L
     L --> M
 
-    M --> N["Process Incoming Tickets"]
-    N --> O["Collect Human Corrections and Outcomes"]
-    O --> P["Store Review Data and Feedback"]
-    P --> Q["Weekly Active-Learning Retraining"]
-    Q --> R["Evaluate Updated Models"]
-    R --> H
-
-    O --> S["Update Threshold Bandit"]
-    O --> T["Update Response Strategy Bandit"]
-    S --> U["Persist Bandit State"]
-    T --> U
+    classDef mono fill:#ffffff,stroke:#000000,color:#000000;
+    class A,B,C,D,E,F,G,H,I,J,K,L,M mono;
+    linkStyle default stroke:#000000,color:#000000;
 ```
+
+
 
 ### How the Two Diagrams Differ
 
