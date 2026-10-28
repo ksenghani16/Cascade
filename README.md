@@ -27,13 +27,13 @@ Every "AI-powered support" demo does the same thing: pipe 100% of incoming reque
 
 ## 1. Complete Cascade System Workflow
 
-
+```mermaid
 flowchart TD
     A["Customer submits a support ticket"] --> B["Cascade Dashboard<br/>dashboard.html"]
     B --> C["FastAPI Backend<br/>POST /triage"]
     C --> D["Text Embedding<br/>Sentence Transformer"]
-    D --> E["Combine text vector and account features"]
-    E --> F["Stage 1: Random Forest Classifier<br/>Predict category and confidence"]
+    D --> E["Combine text vector + account features"]
+    E --> F["Stage 1: Random Forest Classifier<br/>Predict category + confidence"]
     F --> G["Threshold Bandit<br/>Choose confidence threshold"]
     G --> H{"Confidence high enough?"}
 
@@ -48,7 +48,7 @@ flowchart TD
     N --> O["Resolve review ticket"]
 
     L -->|No| P["Stage 3: LLM Agent via n8n"]
-    P --> Q["Local Ollama LLM<br/>Draft contextual reply"]
+    P --> Q["Local Ollama LLM<br/>Drafts a contextual reply"]
     Q --> R["Stage 4: Strategy Bandit<br/>Select response strategy"]
     R --> S["Return drafted reply and strategy to dashboard"]
 
@@ -70,50 +70,39 @@ flowchart TD
     P -.-> Y
     R -.-> Y
 
-    classDef mono fill:#ffffff,stroke:#000000,color:#000000
-    class A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y mono
-    linkStyle default stroke:#000000,color:#000000
+    classDef mono fill:#ffffff,stroke:#000000,color:#000000;
+    class A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y mono;
+    linkStyle default stroke:#000000,color:#000000;
+```
 
-## 2. Model Training and Deployment Workflow
+## 2. Model Training Workflow
 
+```mermaid
 flowchart TD
-    A["Generate synthetic tickets<br/>generate_synthetic_tickets.py"]
-    B["Ticket dataset<br/>data/tickets.csv"]
+    A["Generate synthetic tickets<br/>generate_synthetic_tickets.py"] --> B["Ticket dataset<br/>data/tickets.csv"]
 
-    C["Train classifier<br/>train_classifier.py"]
-    D["Text embeddings and account features"]
-    E["Random Forest and isotonic calibration"]
-    F["Save classifier.joblib"]
+    B --> C["Train classifier<br/>train_classifier.py"]
+    C --> D["Text embeddings + account features"]
+    D --> E["Random Forest + isotonic calibration"]
+    E --> F["Save classifier.joblib"]
 
-    G["Fit unsupervised models<br/>fit_unsupervised_models.py"]
-    H["HDBSCAN clustering model"]
-    I["Isolation Forest anomaly model"]
-    J["Save cluster_model.joblib"]
-    K["Save anomaly_model.joblib"]
+    B --> G["Fit unsupervised models<br/>fit_unsupervised_models.py"]
+    G --> H["HDBSCAN clustering model"]
+    G --> I["Isolation Forest anomaly model"]
 
-    L["FastAPI loads saved models"]
-    M["Ready to process live tickets"]
+    H --> J["Save cluster_model.joblib"]
+    I --> K["Save anomaly_model.joblib"]
 
-    A --> B
-    B --> C
-    C --> D
-    D --> E
-    E --> F
-
-    B --> G
-    G --> H
-    G --> I
-    H --> J
-    I --> K
-
-    F --> L
+    F --> L["FastAPI loads saved models"]
     J --> L
     K --> L
-    L --> M
 
-    classDef mono fill:#ffffff,stroke:#000000,color:#000000
-    class A,B,C,D,E,F,G,H,I,J,K,L,M mono
-    linkStyle default stroke:#000000,color:#000000
+    L --> M["Ready to process live tickets"]
+
+    classDef mono fill:#ffffff,stroke:#000000,color:#000000;
+    class A,B,C,D,E,F,G,H,I,J,K,L,M mono;
+    linkStyle default stroke:#000000,color:#000000;
+```
 
 
 
